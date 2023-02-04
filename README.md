@@ -11,6 +11,13 @@ for (int n : flatlib::flat(numbers)) {
 }
 ```
 
+```cpp
+// Initialize 3x3 matrix with consecutive numbers
+std::array<std::array<int, 3>, 3> m;
+auto flat_matrix = flatlib::flat(m);
+std::iota(flat_matrix.begin(), flat_matrix.end(), 0);
+```
+
 Requires C++20.
 
 ## Rules

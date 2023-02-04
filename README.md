@@ -18,7 +18,7 @@ Requires C++20.
 Each rule is marked if it's implemented
 
 - [x] `flat_view` is only a non-owning view: it only accepts lvalue references
-- [ ] Flattened range with only one layer like `flat_view<std::vector<int>>` preserves iterator category
+- [x] Flattened range with only one layer like `flat_view<std::vector<int>>` preserves iterator category
 - [ ] Flattened at least bidirectional range is bidirectional
 - [x] Flattened at least forward range is forward
 - [x] Flattened at least input range is input

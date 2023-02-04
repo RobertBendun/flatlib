@@ -5,10 +5,26 @@
 
 namespace flatlib
 {
-	template <typename Iter> struct flat_view;
+	namespace details
+	{
+		template<typename From, typename To>
+		struct copy_const { using type = To; };
 
-	template <typename Range>
-		requires(!std::ranges::range<std::ranges::range_value_t<Range>>)
+		template<typename From, typename To>
+		struct copy_const<From const, To>
+		{
+			using type = To const;
+		};
+
+		template<typename From, typename To>
+		using copy_const_t = typename copy_const<From, To>::type;
+	}
+
+	template <std::ranges::range Range>
+	struct flat_view;
+
+	template <std::ranges::range Range>
+	requires(!std::ranges::range<std::ranges::range_value_t<Range>>)
 	struct flat_view<Range> : std::ranges::view_interface<flat_view<Range>>
 	{
 		using underlying_iterator = std::ranges::iterator_t<Range>;
@@ -31,15 +47,27 @@ namespace flatlib
 		constexpr flat_view &operator=(flat_view const &) noexcept = default;
 		constexpr flat_view &operator=(flat_view &&) noexcept = default;
 
-		flat_view(Range &range)
-				: m_begin(std::begin(range)), m_end(std::end(range)) {}
+		constexpr flat_view(Range &range)
+				: m_begin(std::begin(range)), m_end(std::end(range))
+		{
+		}
 
-		auto begin() { return m_begin; }
-		auto end() { return m_end; }
+		constexpr auto begin() const
+		{
+			return m_begin;
+		}
 
-		reference operator*() const { return *m_begin; }
+		constexpr auto end() const
+		{
+			return m_end;
+		}
 
-		auto &operator++()
+		constexpr reference operator*() const
+		{
+			return *m_begin;
+		}
+
+		constexpr auto& operator++()
 		{
 			if (m_begin != m_end) {
 				++m_begin;
@@ -47,21 +75,21 @@ namespace flatlib
 			return *this;
 		}
 
-		auto operator++(int)
+		constexpr auto operator++(int)
 		{
 			auto copy = *this;
 			this->operator++();
 			return copy;
 		}
 
-		auto &operator--()
+		constexpr auto& operator--()
 			requires std::bidirectional_iterator<underlying_iterator>
 		{
 			--m_begin;
 			return *this;
 		}
 
-		auto operator--(int)
+		constexpr auto operator--(int)
 			requires std::bidirectional_iterator<underlying_iterator>
 		{
 			auto copy = *this;
@@ -69,31 +97,32 @@ namespace flatlib
 			return copy;
 		}
 
-		bool operator==(flat_view const &other) const {
-			return (m_begin == m_end && other.m_begin == other.m_end) ||
-						 m_begin == other.m_begin;
+		constexpr bool operator==(flat_view const &other) const
+		{
+			return (m_begin == m_end && other.m_begin == other.m_end)
+				|| m_begin == other.m_begin;
 		}
 
-		auto operator<=>(flat_view const &other) const
+		constexpr auto operator<=>(flat_view const &other) const
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			return m_begin <=> other.m_begin;
 		}
 
-		difference_type operator-(flat_view const &other) const
+		constexpr difference_type operator-(flat_view const &other) const
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			return m_begin - other.m_begin;
 		}
 
-		auto &operator+=(difference_type n)
+		constexpr auto &operator+=(difference_type n)
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			m_begin += n;
 			return *this;
 		}
 
-		auto operator+(difference_type n) const
+		constexpr auto operator+(difference_type n) const
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			auto copy = *this;
@@ -101,20 +130,20 @@ namespace flatlib
 			return copy;
 		}
 
-		friend auto operator+(difference_type n, flat_view view)
+		friend constexpr auto operator+(difference_type n, flat_view view)
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			return view + n;
 		}
 
-		auto &operator-=(difference_type n)
+		constexpr auto &operator-=(difference_type n)
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			m_begin -= n;
 			return *this;
 		}
 
-		auto operator-(difference_type n) const
+		constexpr auto operator-(difference_type n) const
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			auto copy = *this;
@@ -122,20 +151,20 @@ namespace flatlib
 			return copy;
 		}
 
-		reference operator[](difference_type n) const
+		constexpr reference operator[](difference_type n) const
 			requires std::random_access_iterator<underlying_iterator>
 		{
 			return *(m_begin + n);
 		}
 	};
 
-	template <typename Range>
-		requires std::ranges::range<std::ranges::range_value_t<Range>>
+	template <std::ranges::range Range>
+	requires std::ranges::range<std::ranges::range_value_t<Range>>
 	struct flat_view<Range> : std::ranges::view_interface<flat_view<Range>>
 	{
 		using range_iterator = std::ranges::iterator_t<Range>;
 		using range_sentinel = std::ranges::sentinel_t<Range>;
-		using subrange = flat_view<std::ranges::range_value_t<Range>>;
+		using subrange = flat_view<details::copy_const_t<Range, std::ranges::range_value_t<Range>>>;
 
 		using value_type = typename subrange::value_type;
 		using reference = typename subrange::reference;
@@ -146,7 +175,8 @@ namespace flatlib
 		using iterator_category =
 				std::conditional_t<std::is_same_v<typename subrange::iterator_category,
 																					std::input_iterator_tag>,
-													 std::input_iterator_tag, std::forward_iterator_tag>;
+													 std::input_iterator_tag,
+													 std::forward_iterator_tag>;
 
 		using difference_type = std::ptrdiff_t;
 
@@ -162,13 +192,13 @@ namespace flatlib
 		constexpr flat_view &operator=(flat_view const &) noexcept = default;
 		constexpr flat_view &operator=(flat_view &&) noexcept = default;
 
-		flat_view(Range &range)
+		constexpr flat_view(Range &range)
 			: m_range_end(std::end(range))
 			, m_range_begin(std::begin(range))
 		{
 		}
 
-		reference operator*() const
+		constexpr reference operator*() const
 		{
 			if (!m_subrange) {
 				m_subrange.emplace(**m_range_begin);
@@ -176,7 +206,7 @@ namespace flatlib
 			return *m_subrange->begin();
 		}
 
-		flat_view &operator++()
+		constexpr flat_view &operator++()
 		{
 			if (!m_range_begin || *m_range_begin == m_range_end) {
 				return *this;
@@ -193,19 +223,19 @@ namespace flatlib
 			return *this;
 		}
 
-		flat_view operator++(int)
+		constexpr flat_view operator++(int)
 		{
 			auto copy = *this;
 			this->operator++();
 			return copy;
 		}
 
-		flat_view &operator--()
+		constexpr flat_view &operator--()
 			requires(std::bidirectional_iterator<range_iterator> &&
 							 std::bidirectional_iterator<std::ranges::iterator_t<subrange>>)
 		= delete; // TODO
 
-		bool operator==(flat_view const &other) const noexcept
+		constexpr bool operator==(flat_view const &other) const noexcept
 		{
 			if (m_range_begin && other.m_range_begin) {
 				if (*m_range_begin != *other.m_range_begin) {
@@ -234,9 +264,13 @@ namespace flatlib
 			return true;
 		}
 
-		auto begin() { return *this; }
+		constexpr auto begin() const
+		{
+			return *this;
+		}
 
-		auto end() {
+		constexpr auto end() const
+		{
 			flat_view copy = *this;
 			copy.m_subrange = std::nullopt;
 			copy.m_range_begin = std::nullopt;
@@ -244,9 +278,10 @@ namespace flatlib
 		}
 	};
 
-	template <std::ranges::range Range> auto flat(Range &range)
+	template <std::ranges::range Range>
+	constexpr flat_view<Range> flat(Range &range)
 	{
-		return flat_view<Range>{range};
+		return range;
 	}
 }
 
@@ -281,7 +316,8 @@ static_assert(
 				std::forward_iterator_tag>);
 
 void test(std::string_view expected_output, auto code,
-					std::source_location sl = std::source_location::current()) {
+					std::source_location sl = std::source_location::current())
+{
 	std::stringstream ss;
 	code(ss);
 	if (ss.str() != expected_output) {
@@ -309,7 +345,7 @@ int main() {
 	});
 
 	test("255255255000", [](std::stringstream &out) {
-		std::vector<std::array<int, 3>> colors = {{0xff, 0xff, 0xff},
+		std::vector<std::array<int, 3>> const colors = {{0xff, 0xff, 0xff},
 																							{0, 0, 0}};
 		for (auto &el : flatlib::flat(colors)) {
 			out << el;

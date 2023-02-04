@@ -289,6 +289,8 @@ namespace flatlib
 
 #ifdef FLATLIB_TEST
 
+
+#include <algorithm>
 #include <array>
 #include <forward_list>
 #include <iomanip>
@@ -298,7 +300,6 @@ namespace flatlib
 #include <source_location>
 #include <sstream>
 #include <vector>
-
 static_assert(
 		std::forward_iterator<flatlib::flat_view<std::forward_list<int>>>);
 static_assert(std::bidirectional_iterator<flatlib::flat_view<std::list<int>>>);
@@ -328,6 +329,26 @@ void test(std::string_view expected_output, auto code,
 	}
 }
 
+template<typename M>
+concept Matrix = std::ranges::range<M> && std::ranges::range<std::ranges::range_value_t<M>>;
+
+std::ostream& operator<<(std::ostream& out, Matrix auto const& matrix)
+{
+	for (auto y = std::begin(matrix); y != std::end(matrix);) {
+		for (auto x = std::begin(*y); x != std::end(*y);) {
+			out << *x;
+			if (++x != std::end(*y)) {
+				out << ' ';
+			}
+		}
+
+		if (++y != std::end(matrix)) {
+			out << '\n';
+		}
+	}
+	return out;
+}
+
 int main() {
 	test("123456", [](std::stringstream &out) {
 		std::stringstream ss1, ss2;
@@ -352,17 +373,18 @@ int main() {
 		}
 	});
 
-	test("11 22 \n33 44 55 66 \n", [](std::stringstream &out) {
+	test("11 22\n33 44 55 66", [](std::stringstream &out) {
 		std::vector<std::vector<int>> nums = { {1,2}, {3,4,5,6} };
 		for (auto &el : flatlib::flat(nums)) {
 			el += el * 10;
 		}
-		for (auto const& vec : nums) {
-			for (auto const& num : vec) {
-				out << num << ' ';
-			}
-			out << '\n';
-		}
+		out << nums;
+	});
+
+	test("0 1 2\n3 4 5\n6 7 8", [](std::stringstream &out) {
+		std::array<std::array<int, 3>, 3> nums;
+		std::iota(flatlib::flat(nums), flatlib::flat(nums).end(), 0);
+		out << nums;
 	});
 }
 

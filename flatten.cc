@@ -280,7 +280,7 @@ static_assert(
 				flatlib::flat_view<std::vector<std::vector<int>>>::iterator_category,
 				std::forward_iterator_tag>);
 
-void test(auto code, std::string_view expected_output,
+void test(std::string_view expected_output, auto code,
 					std::source_location sl = std::source_location::current()) {
 	std::stringstream ss;
 	code(ss);
@@ -293,32 +293,41 @@ void test(auto code, std::string_view expected_output,
 }
 
 int main() {
-	test(
-			[](std::stringstream &out) {
-				std::stringstream ss1, ss2;
-				ss1 << "123";
-				ss2 << "456";
+	test("123456", [](std::stringstream &out) {
+		std::stringstream ss1, ss2;
+		ss1 << "123";
+		ss2 << "456";
 
-				auto list_of_stream_iterators = std::forward_list<std::ranges::subrange<
-						std::istream_iterator<char>, std::istream_iterator<char>>>{
-						{std::istream_iterator<char>{ss1}, std::istream_iterator<char>{}},
-						{std::istream_iterator<char>{ss2}, std::istream_iterator<char>{}}};
+		auto list_of_stream_iterators = std::forward_list<std::ranges::subrange<
+				std::istream_iterator<char>, std::istream_iterator<char>>>{
+				{std::istream_iterator<char>{ss1}, std::istream_iterator<char>{}},
+				{std::istream_iterator<char>{ss2}, std::istream_iterator<char>{}}};
 
-				for (auto &el : flatlib::flat(list_of_stream_iterators)) {
-					out << el;
-				}
-			},
-			"123456");
+		for (auto &el : flatlib::flat(list_of_stream_iterators)) {
+			out << el;
+		}
+	});
 
-	test(
-			[](std::stringstream &out) {
-				std::vector<std::array<int, 3>> colors = {{0xff, 0xff, 0xff},
-																									{0, 0, 0}};
-				for (auto &el : flatlib::flat(colors)) {
-					out << el;
-				}
-			},
-			"255255255000");
+	test("255255255000", [](std::stringstream &out) {
+		std::vector<std::array<int, 3>> colors = {{0xff, 0xff, 0xff},
+																							{0, 0, 0}};
+		for (auto &el : flatlib::flat(colors)) {
+			out << el;
+		}
+	});
+
+	test("11 22 \n33 44 55 66 \n", [](std::stringstream &out) {
+		std::vector<std::vector<int>> nums = { {1,2}, {3,4,5,6} };
+		for (auto &el : flatlib::flat(nums)) {
+			el += el * 10;
+		}
+		for (auto const& vec : nums) {
+			for (auto const& num : vec) {
+				out << num << ' ';
+			}
+			out << '\n';
+		}
+	});
 }
 
 #endif
